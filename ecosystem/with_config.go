@@ -2,12 +2,13 @@ package ecosystem
 
 import (
 	"context"
-	ayaka "github.com/illusory-server/ayaka/core"
-	"github.com/ilyakaznacheev/cleanenv"
-	"github.com/pkg/errors"
 	"os"
 	"strconv"
 	"time"
+
+	ayaka "github.com/OddEer0/ayaka/core"
+	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/pkg/errors"
 )
 
 const (

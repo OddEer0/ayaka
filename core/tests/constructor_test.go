@@ -2,9 +2,10 @@ package ayaka_test
 
 import (
 	"context"
-	ayaka "github.com/illusory-server/ayaka/core"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	ayaka "github.com/OddEer0/ayaka/core"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConstructor(t *testing.T) {

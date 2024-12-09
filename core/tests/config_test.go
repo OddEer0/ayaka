@@ -1,10 +1,11 @@
 package ayaka
 
 import (
-	ayaka "github.com/illusory-server/ayaka/core"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	ayaka "github.com/OddEer0/ayaka/core"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWithConfig(t *testing.T) {

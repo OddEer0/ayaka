@@ -2,9 +2,10 @@ package ecosystem
 
 import (
 	"fmt"
-	ayaka "github.com/illusory-server/ayaka/core"
-	cli "github.com/jawher/mow.cli"
 	"os"
+
+	ayaka "github.com/OddEer0/ayaka/core"
+	cli "github.com/jawher/mow.cli"
 )
 
 const helpString = `
