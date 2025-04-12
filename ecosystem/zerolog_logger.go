@@ -2,6 +2,7 @@ package ecosystem
 
 import (
 	"context"
+
 	"github.com/rs/zerolog"
 )
 
@@ -41,6 +42,7 @@ func (z *ZerologLogger) Error(ctx context.Context, message string, info map[stri
 	l.Msg(message)
 }
 
+// NewAppLoggerWithZerolog constructor
 func NewAppLoggerWithZerolog(logger *zerolog.Logger) *ZerologLogger {
 	if logger == nil {
 		logger = zerolog.DefaultContextLogger

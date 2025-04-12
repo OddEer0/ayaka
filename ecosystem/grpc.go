@@ -2,85 +2,102 @@ package ecosystem
 
 import (
 	"context"
+	ayaka "github.com/OddEer0/ayaka/core"
 	"net"
 	"sync"
 	"time"
 
-	ayaka "github.com/OddEer0/ayaka/core"
 	validation "github.com/go-ozzo/ozzo-validation"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	grpcvalidator "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/validator"
-	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
-	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
-	"go.uber.org/dig"
 	"google.golang.org/grpc"
 )
 
+var _ ayaka.Job[string] = (*GrpcJob[string])(nil)
+
+const (
+	sliceCap = 8
+)
+
 type (
-	GrpcJobBuilder struct {
+	GrpcJobBuilder[T any] struct {
 		address        string
 		requestTimeout time.Duration
-		maxRetry       int
+		recoverHandle  func()
 		interceptors   []grpc.UnaryServerInterceptor
-		regs           []GrpcRegister
+		regs           []GrpcRegister[T]
 		serverRegs     []GrpcServerRegister
-		tracer         opentracing.Tracer
+		options        []grpc.ServerOption
 	}
 
-	GrpcJob struct {
+	GrpcJob[T any] struct {
+		recoverHandle  func()
 		srv            *grpc.Server
 		mu             sync.Mutex
 		address        string
 		requestTimeout time.Duration
-		maxRetry       int
 		interceptors   []grpc.UnaryServerInterceptor
-		regs           []GrpcRegister
+		regs           []GrpcRegister[T]
 		serverRegs     []GrpcServerRegister
-		tracer         opentracing.Tracer
+		options        []grpc.ServerOption
 	}
 
-	GrpcRegister       func(ctx context.Context, di *dig.Container, srv *grpc.Server) error
-	GrpcServerRegister func(srv *grpc.Server) error
+	GrpcRegister[T any] func(ctx context.Context, di T, srv *grpc.Server) error
+	GrpcServerRegister  func(srv *grpc.Server) error
 )
 
-func (g *GrpcJobBuilder) Validate() error {
+func (g *GrpcJob[T]) Address() string {
+	return g.address
+}
+
+func (g *GrpcJob[T]) RequestTimeout() time.Duration {
+	return g.requestTimeout
+}
+
+func (g *GrpcJob[T]) Interceptors() []grpc.UnaryServerInterceptor {
+	return g.interceptors
+}
+
+func (g *GrpcJob[T]) Regs() []GrpcRegister[T] {
+	return g.regs
+}
+
+func (g *GrpcJob[T]) ServerRegs() []GrpcServerRegister {
+	return g.serverRegs
+}
+
+func (g *GrpcJob[T]) Options() []grpc.ServerOption {
+	return g.options
+}
+
+func (g *GrpcJobBuilder[T]) Validate() error {
 	return validation.ValidateStruct(g,
 		validation.Field(&g.address, validation.Required),
 		validation.Field(&g.requestTimeout, validation.Required),
-		validation.Field(&g.maxRetry, validation.Required),
-		validation.Field(&g.tracer, validation.Required),
 	)
 }
 
-func NewGrpcJobBuilder() *GrpcJobBuilder {
-	return &GrpcJobBuilder{
-		regs:         make([]GrpcRegister, 0, 8),
-		interceptors: make([]grpc.UnaryServerInterceptor, 0, 8),
+func NewGrpcJobBuilder[T any]() *GrpcJobBuilder[T] {
+	return &GrpcJobBuilder[T]{
+		recoverHandle: func() {},
+		regs:          make([]GrpcRegister[T], 0, sliceCap),
+		serverRegs:    make([]GrpcServerRegister, 0, sliceCap),
+		interceptors:  make([]grpc.UnaryServerInterceptor, 0, sliceCap),
+		options:       make([]grpc.ServerOption, 0, sliceCap),
 	}
 }
 
-func (g *GrpcJob) Init(ctx context.Context, di *dig.Container) error {
-	sliceInterceptors := append(g.interceptors,
-		grpcprometheus.UnaryServerInterceptor,
-		otgrpc.OpenTracingServerInterceptor(g.tracer),
-		grpcvalidator.UnaryServerInterceptor(),
-	)
+func (g *GrpcJob[T]) Init(ctx context.Context, di T) error {
+	sliceInterceptors := make([]grpc.UnaryServerInterceptor, 0, len(g.interceptors))
+	copy(sliceInterceptors, g.interceptors)
 
-	if g.requestTimeout != 0 {
-		sliceInterceptors = append(sliceInterceptors, TimeoutInterceptor(g.requestTimeout))
+	if g.requestTimeout > 0 {
+		sliceInterceptors = append(sliceInterceptors, TimeoutInterceptor(g.requestTimeout, g.recoverHandle))
 	}
 
 	grpcOptions := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(sliceInterceptors...),
-		grpc.ChainStreamInterceptor(
-			otgrpc.OpenTracingStreamServerInterceptor(g.tracer),
-			recovery.StreamServerInterceptor(),
-			grpcprometheus.StreamServerInterceptor,
-			grpcvalidator.StreamServerInterceptor(),
-		),
 	}
+	grpcOptions = append(grpcOptions, g.options...)
 
 	srv := grpc.NewServer(grpcOptions...)
 
@@ -114,19 +131,16 @@ func (g *GrpcJob) Init(ctx context.Context, di *dig.Container) error {
 	}
 }
 
-func (g *GrpcJob) Run(ctx context.Context, di *dig.Container) error {
+func (g *GrpcJob[T]) Run(ctx context.Context, di T) error {
 	errCh := make(chan error, 1)
-	var log ayaka.Logger
-	err := di.Invoke(func(logger ayaka.Logger) {
-		log = logger
-	})
+	app, err := ayaka.AppFromContext[T](ctx)
 	if err != nil {
-		return errors.Wrap(err, "[GrpcJob] di.Invoke")
+		return errors.Wrap(err, "[GrpcJob] ayaka.AppFromContext")
 	}
 
 	go func() {
 		if g.srv != nil {
-			log.Info(ctx, "grpc server started...", map[string]any{"address": g.address})
+			app.Logger().Info(ctx, "grpc server started...", map[string]any{"address": g.address})
 
 			lis, err := net.Listen("tcp", g.address)
 			if err != nil {
@@ -148,65 +162,69 @@ func (g *GrpcJob) Run(ctx context.Context, di *dig.Container) error {
 	case err := <-errCh:
 		return err
 	case <-ctx.Done():
-		log.Warn(ctx, "grpc server stopped", map[string]any{"address": g.address})
+		app.Logger().Warn(ctx, "grpc server stopped", map[string]any{"address": g.address})
 		g.srv.GracefulStop()
 		return nil
 	}
 }
 
-func (g *GrpcJobBuilder) Address(address string) *GrpcJobBuilder {
+func (g *GrpcJobBuilder[T]) Address(address string) *GrpcJobBuilder[T] {
 	g.address = address
 	return g
 }
 
-func (g *GrpcJobBuilder) RequestTimeout(timeout time.Duration) *GrpcJobBuilder {
+func (g *GrpcJobBuilder[T]) RecoverHandler(recoverHandler func()) *GrpcJobBuilder[T] {
+	g.recoverHandle = recoverHandler
+	return g
+}
+
+func (g *GrpcJobBuilder[T]) RequestTimeout(timeout time.Duration) *GrpcJobBuilder[T] {
 	g.requestTimeout = timeout
 	return g
 }
 
-func (g *GrpcJobBuilder) MaxRetry(max int) *GrpcJobBuilder {
-	g.maxRetry = max
-	return g
-}
-
-func (g *GrpcJobBuilder) Interceptors(interceptors ...grpc.UnaryServerInterceptor) *GrpcJobBuilder {
-	g.interceptors = interceptors
-	g.interceptors = append(g.interceptors, interceptors...)
-	return g
-}
-
-func (g *GrpcJobBuilder) Tracer(tracer opentracing.Tracer) *GrpcJobBuilder {
-	g.tracer = tracer
-	return g
-}
-
-func (g *GrpcJobBuilder) Register(regs ...GrpcRegister) *GrpcJobBuilder {
-	for _, reg := range regs {
-		g.regs = append(g.regs, reg)
+func (g *GrpcJobBuilder[T]) Interceptors(interceptors ...grpc.UnaryServerInterceptor) *GrpcJobBuilder[T] {
+	if len(interceptors) > 0 {
+		g.interceptors = append(g.interceptors, interceptors...)
 	}
 	return g
 }
 
-func (g *GrpcJobBuilder) RegisterServer(regs ...GrpcServerRegister) *GrpcJobBuilder {
-	for _, reg := range regs {
-		g.serverRegs = append(g.serverRegs, reg)
+func (g *GrpcJobBuilder[T]) Register(regs ...GrpcRegister[T]) *GrpcJobBuilder[T] {
+	if len(regs) > 0 {
+		g.regs = append(g.regs, regs...)
 	}
 	return g
 }
 
-func (g *GrpcJobBuilder) Build() (*GrpcJob, error) {
+func (g *GrpcJobBuilder[T]) RegisterServer(regs ...GrpcServerRegister) *GrpcJobBuilder[T] {
+	if len(regs) > 0 {
+		g.serverRegs = append(g.serverRegs, regs...)
+	}
+	return g
+}
+
+func (g *GrpcJobBuilder[T]) RegisterOptions(options ...grpc.ServerOption) *GrpcJobBuilder[T] {
+	if len(options) > 0 {
+		g.options = append(g.options, options...)
+	}
+	return g
+}
+
+func (g *GrpcJobBuilder[T]) Build() (*GrpcJob[T], error) {
 	err := g.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "[GrpcJobBuilder] validate error")
 	}
 
-	return &GrpcJob{
+	return &GrpcJob[T]{
 		address:        g.address,
 		requestTimeout: g.requestTimeout,
-		maxRetry:       g.maxRetry,
 		interceptors:   g.interceptors,
 		regs:           g.regs,
-		tracer:         g.tracer,
+		serverRegs:     g.serverRegs,
+		options:        g.options,
 		mu:             sync.Mutex{},
+		recoverHandle:  g.recoverHandle,
 	}, nil
 }
