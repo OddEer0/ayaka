@@ -7,8 +7,8 @@ import (
 
 	"errors"
 
+	ayaka "github.com/OddEer0/ayaka/core"
 	"github.com/stretchr/testify/assert"
-	ayaka "gitlab.com/colonel4/mirage/backend/core/accounts/pkg/core"
 )
 
 type Container struct{}

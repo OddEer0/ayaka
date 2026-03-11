@@ -3,6 +3,7 @@ package ayaka
 import (
 	"context"
 	"errors"
+	"reflect"
 )
 
 type (
@@ -102,7 +103,8 @@ type Options[T any] struct {
 func (o Options[T]) Validate() error {
 	if o.Name == "" ||
 		o.Version == "" ||
-		o.Description == "" {
+		o.Description == "" ||
+		reflect.ValueOf(o.Container).IsNil() {
 		return ErrIsInvalidArgument
 	}
 	return nil
