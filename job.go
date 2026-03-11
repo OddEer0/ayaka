@@ -17,7 +17,7 @@ const (
 	LogMessageInitPanic              = "job init panic"
 	LogMessageRunError               = "job run failed"
 	LogMessageRunPanic               = "job run panic"
-	LogMessageGracefulShotdownFailed = "graceful shotdown failed"
+	LogMessageGracefulShutdownFailed = "graceful shutdown failed"
 	FormatErrJobInitFailed           = "failed to initialize job '%s': %w"
 	FormatErrJobInitPanic            = "panic in initialized job '%s': %v"
 	FormatErrJobRunFailed            = "failed run job '%s': %w"
@@ -68,7 +68,7 @@ func (a *App[T]) initJob() error {
 		t := time.NewTimer(a.Config().GracefulTimeout)
 		select {
 		case <-t.C:
-			a.logger.Warn(a.ctx, LogMessageGracefulShotdownFailed, nil)
+			a.logger.Warn(a.ctx, LogMessageGracefulShutdownFailed, nil)
 			return ErrGracefulTimeout
 		case <-stopChan:
 			if errors.Is(ctx.Err(), context.Canceled) {
@@ -123,7 +123,7 @@ func (a *App[T]) runJob() error {
 		t := time.NewTimer(a.Config().GracefulTimeout)
 		select {
 		case <-t.C:
-			a.logger.Warn(a.ctx, LogMessageGracefulShotdownFailed, nil)
+			a.logger.Warn(a.ctx, LogMessageGracefulShutdownFailed, nil)
 			return ErrGracefulTimeout
 		case <-stopChan:
 			if errors.Is(ctx.Err(), context.Canceled) {

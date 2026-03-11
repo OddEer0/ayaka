@@ -851,7 +851,7 @@ func TestJobsTimout(t *testing.T) {
 		data.infos = data.infos[1:]
 
 		assert.Equal(t,
-			[]string{"init all job started", ayaka.LogMessageInitError, ayaka.LogMessageGracefulShotdownFailed},
+			[]string{"init all job started", ayaka.LogMessageInitError, ayaka.LogMessageGracefulShutdownFailed},
 			data.messages)
 		assert.Equal(t,
 			[]string{"info", "error", "warn"},
@@ -909,7 +909,7 @@ func TestJobsTimout(t *testing.T) {
 		data.infos = data.infos[1:]
 
 		assert.Equal(t,
-			[]string{"init all job started", "init end", "init end", "run all job started", ayaka.LogMessageRunError, ayaka.LogMessageGracefulShotdownFailed},
+			[]string{"init all job started", "init end", "init end", "run all job started", ayaka.LogMessageRunError, ayaka.LogMessageGracefulShutdownFailed},
 			data.messages)
 		assert.Equal(t,
 			[]string{"info", "debug", "debug", "info", "error", "warn"},
