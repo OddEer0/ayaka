@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
-	ayaka2 "github.com/OddEer0/ayaka"
+	"github.com/OddEer0/ayaka"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestConstructor(t *testing.T) {
 	t.Run("Should correct init", func(t *testing.T) {
-		app := ayaka2.NewApp[*Container](&ayaka2.Options[*Container]{
+		app := ayaka.NewApp[*Container](&ayaka.Options[*Container]{
 			Name:        "my-app",
 			Description: "my-app description testing",
 			Version:     "1.0.0",
@@ -24,18 +24,18 @@ func TestConstructor(t *testing.T) {
 		assert.NotNil(t, app.Container())
 		assert.NotNil(t, app.Config())
 		assert.NotEmpty(t, app.Context())
-		appFromCtx, err := ayaka2.AppFromContext[*Container](app.Context())
+		appFromCtx, err := ayaka.AppFromContext[*Container](app.Context())
 		assert.NoError(t, err)
 		assert.NotNil(t, appFromCtx)
 
-		appFromCtx, err = ayaka2.AppFromContext[*Container](context.Background())
+		appFromCtx, err = ayaka.AppFromContext[*Container](context.Background())
 		assert.Nil(t, appFromCtx)
-		assert.Equal(t, ayaka2.ErrAppNotFountInContext, err)
+		assert.Equal(t, ayaka.ErrAppNotFountInContext, err)
 	})
 
 	t.Run("Should error with empty required Name, Container, Description and Version fields", func(t *testing.T) {
 		container := &Container{}
-		app := ayaka2.NewApp[*Container](&ayaka2.Options[*Container]{
+		app := ayaka.NewApp[*Container](&ayaka.Options[*Container]{
 			Description: "my-app description testing",
 			Version:     "1.0.0",
 			Container:   container,
@@ -43,7 +43,7 @@ func TestConstructor(t *testing.T) {
 		assert.Error(t, app.Err())
 		assert.Error(t, app.Start())
 
-		app = ayaka2.NewApp[*Container](&ayaka2.Options[*Container]{
+		app = ayaka.NewApp[*Container](&ayaka.Options[*Container]{
 			Name:      "my-app",
 			Version:   "1.0.0",
 			Container: container,
@@ -51,7 +51,7 @@ func TestConstructor(t *testing.T) {
 		assert.Error(t, app.Err())
 		assert.Error(t, app.Start())
 
-		app = ayaka2.NewApp[*Container](&ayaka2.Options[*Container]{
+		app = ayaka.NewApp[*Container](&ayaka.Options[*Container]{
 			Name:        "my-app",
 			Description: "my-app description testing",
 			Container:   container,
@@ -59,7 +59,7 @@ func TestConstructor(t *testing.T) {
 		assert.Error(t, app.Err())
 		assert.Error(t, app.Start())
 
-		app = ayaka2.NewApp[*Container](&ayaka2.Options[*Container]{
+		app = ayaka.NewApp[*Container](&ayaka.Options[*Container]{
 			Name:        "my-app",
 			Version:     "1.0.0",
 			Description: "my-app description testing",

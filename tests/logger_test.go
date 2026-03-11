@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	ayaka2 "github.com/OddEer0/ayaka"
+	"github.com/OddEer0/ayaka"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -83,13 +83,13 @@ func newTestLogger() *testLogger {
 func TestLogger(t *testing.T) {
 	logger := newTestLogger()
 
-	ayaka2.NewApp[*Container](&ayaka2.Options[*Container]{
+	ayaka.NewApp[*Container](&ayaka.Options[*Container]{
 		Name:        "my-app",
 		Description: "my-app description testing",
 		Version:     "1.0.0",
 		Container:   &Container{},
 		Logger:      logger,
-	}).WithConfig(&ayaka2.Config{
+	}).WithConfig(&ayaka.Config{
 		StartTimeout:    time.Second * 2,
 		GracefulTimeout: time.Second * 3,
 		Info: map[string]any{
@@ -103,7 +103,7 @@ func TestLogger(t *testing.T) {
 	assert.Equal(t, []string{"add new config"}, data.messages)
 	assert.Equal(t, []map[string]any{
 		{
-			"config": &ayaka2.Config{
+			"config": &ayaka.Config{
 				StartTimeout:    time.Second * 2,
 				GracefulTimeout: time.Second * 3,
 				Info: map[string]any{
