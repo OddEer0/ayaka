@@ -1,6 +1,37 @@
 version: 3
+
+env:
+  GO_VERSION: '1.25'
+  GOLANGCI_LINT_VERSION: 'v2.10.1'
+
+  PATH_BIN_DIR: '{{.ROOT_DIR}}/bin'
+  PATH_GOLANGCI_LINT: '{{.PATH_BIN_DIR}}/golangci-lint'
+  PATH_GOLANGCI_LINT_CONFIG: '.golangci.yml'
   
 tasks:
+  install-linters:
+    desc: "install linters to bin"
+    cmds:
+      - |
+        [ -f {{.PATH_GOLANGCI_LINT}} ] || {
+          echo 'install golangci-lint {{.GOLANGCI_LINT_VERSION}}...'
+          GOBIN={{.PATH_BIN_DIR}} go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
+        }
+    status:
+      - test -x {{.PATH_GOLANGCI_LINT}}
+
+  lint:
+    desc: "start lint on all module"
+    deps: [ install-linters ]
+    cmds:
+      - '{{.PATH_GOLANGCI_LINT}} run ./... --config={{.PATH_GOLANGCI_LINT_CONFIG}}'
+
+  lintfix:
+    desc: "start lint on all module"
+    deps: [ install-linters ]
+    cmds:
+      - '{{.PATH_GOLANGCI_LINT}} run ./... --fix --config={{.PATH_GOLANGCI_LINT_CONFIG}}'
+
   test:
     cmds:
       - go clean -testcache
@@ -10,9 +41,4 @@ tasks:
       - go test -race -v -coverpkg=./... -coverprofile=c.out ./...
       - go tool cover -html="c.out"
       - rm c.out
-  lint:
-    cmds:
-      - golangci-lint run
-  lintfix:
-    cmds:
-      - golangci-lint run --fix
+
