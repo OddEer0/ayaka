@@ -100,11 +100,25 @@ type Options[T any] struct {
 	Container                  T
 }
 
+func IsNil(val any) bool {
+	if val == nil {
+		return true
+	}
+
+	v := reflect.ValueOf(val)
+	switch v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return v.IsNil()
+	default:
+		return false
+	}
+}
+
 func (o Options[T]) Validate() error {
 	if o.Name == "" ||
 		o.Version == "" ||
 		o.Description == "" ||
-		reflect.ValueOf(o.Container).IsNil() {
+		IsNil(o.Container) {
 		return ErrIsInvalidArgument
 	}
 	return nil
