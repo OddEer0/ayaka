@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	ayaka "github.com/OddEer0/ayaka/core"
+	ayaka2 "github.com/OddEer0/ayaka"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMarshalConfig(t *testing.T) {
-	cfg := ayaka.Config{
+	cfg := ayaka2.Config{
 		StartTimeout:    time.Second * 3,
 		GracefulTimeout: time.Second * 2,
 		Info: map[string]interface{}{
@@ -36,7 +36,7 @@ func TestMarshalConfig(t *testing.T) {
 }
 
 func TestContext(t *testing.T) {
-	app := ayaka.NewApp[*Container](&ayaka.Options[*Container]{
+	app := ayaka2.NewApp[*Container](&ayaka2.Options[*Container]{
 		Name:        "my-app",
 		Description: "my-app description testing",
 		Version:     "1.0.0",
@@ -44,13 +44,13 @@ func TestContext(t *testing.T) {
 	})
 
 	ctx := app.Context()
-	appRes, err := ayaka.AppFromContext[*Container](ctx)
+	appRes, err := ayaka2.AppFromContext[*Container](ctx)
 	assert.NoError(t, err)
 	assert.NotNil(t, appRes)
 
 	assert.Nil(t, appRes.Err())
-	assert.Equal(t, &ayaka.Config{}, appRes.Config())
-	assert.Equal(t, ayaka.Info{
+	assert.Equal(t, &ayaka2.Config{}, appRes.Config())
+	assert.Equal(t, ayaka2.Info{
 		Name:        "my-app",
 		Description: "my-app description testing",
 		Version:     "1.0.0",
@@ -58,14 +58,14 @@ func TestContext(t *testing.T) {
 	assert.NotNil(t, appRes.Container())
 	assert.NotZero(t, appRes.Context())
 
-	appRes, err = ayaka.AppFromContext[*Container](context.Background())
+	appRes, err = ayaka2.AppFromContext[*Container](context.Background())
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ayaka.ErrAppNotFountInContext))
+	assert.True(t, errors.Is(err, ayaka2.ErrAppNotFountInContext))
 	assert.Nil(t, appRes)
 }
 
 func TestNoopLogger(t *testing.T) {
-	logger := ayaka.NoopLogger{}
+	logger := ayaka2.NoopLogger{}
 	ctx := context.Background()
 	message := "message string"
 	info := map[string]any{}
