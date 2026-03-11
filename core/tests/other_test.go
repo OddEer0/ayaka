@@ -3,11 +3,12 @@ package ayaka
 import (
 	"context"
 	"encoding/json"
-	ayaka "github.com/OddEer0/ayaka/core"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	ayaka "gitlab.com/colonel4/mirage/backend/core/accounts/pkg/core"
 )
 
 func TestMarshalConfig(t *testing.T) {

@@ -1,7 +1,7 @@
 package ayaka
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 )
 
 func (a *App[T]) Start() error {
@@ -17,13 +17,13 @@ func (a *App[T]) Start() error {
 	})
 	err := a.initJob()
 	if err != nil {
-		return errors.Wrap(err, "[App] initJob")
+		return fmt.Errorf("[App] initJob: %v", err)
 	}
 
 	a.logger.Info(a.ctx, "run all job started", nil)
 	err = a.runJob()
 	if err != nil {
-		return errors.Wrap(err, "[App] runJob")
+		return fmt.Errorf("[App] runJob: %v", err)
 	}
 
 	a.logger.Info(a.ctx, "run all job finished", nil)

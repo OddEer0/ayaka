@@ -24,7 +24,7 @@ linters:
     - mnd
     - exhaustive
     - funlen
-#      - wrapcheck
+
   settings:
     revive:
       rules:

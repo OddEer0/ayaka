@@ -2,7 +2,7 @@ package ayaka
 
 import (
 	"context"
-	validation "github.com/go-ozzo/ozzo-validation"
+	"errors"
 )
 
 type (
@@ -38,6 +38,10 @@ type (
 	ReadonlyApp[T any] struct {
 		app *App[T]
 	}
+)
+
+var (
+	ErrIsInvalidArgument = errors.New("invallid argument")
 )
 
 func (a *App[T]) Info() Info {
@@ -96,12 +100,12 @@ type Options[T any] struct {
 }
 
 func (o Options[T]) Validate() error {
-	return validation.ValidateStruct(&o,
-		validation.Field(&o.Name, validation.Required),
-		validation.Field(&o.Description, validation.Required),
-		validation.Field(&o.Version, validation.Required),
-		validation.Field(&o.Container, validation.Required),
-	)
+	if o.Name == "" ||
+		o.Version == "" ||
+		o.Description == "" {
+		return ErrIsInvalidArgument
+	}
+	return nil
 }
 
 func NewApp[T any](opt *Options[T]) *App[T] {

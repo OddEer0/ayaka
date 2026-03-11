@@ -11,10 +11,10 @@ type Logger interface {
 
 type NoopLogger struct{}
 
-func (n NoopLogger) Debug(ctx context.Context, message string, info map[string]any) {}
+func (n NoopLogger) Debug(context.Context, string, map[string]any) {}
 
-func (n NoopLogger) Info(ctx context.Context, message string, info map[string]any) {}
+func (n NoopLogger) Info(context.Context, string, map[string]any) {}
 
-func (n NoopLogger) Warn(ctx context.Context, message string, info map[string]any) {}
+func (n NoopLogger) Warn(context.Context, string, map[string]any) {}
 
-func (n NoopLogger) Error(ctx context.Context, message string, info map[string]any) {}
+func (n NoopLogger) Error(context.Context, string, map[string]any) {}

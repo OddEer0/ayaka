@@ -3,13 +3,12 @@ package ayaka
 import (
 	"sync"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 var (
-	ErrGracefulTimeout         = errors.New("graceful timeout error")
-	ErrAppNotFountInContext    = errors.New("app not found in context")
-	ErrIncorrectValueInContext = errors.New("incorrect value in context")
+	ErrGracefulTimeout      = errors.New("graceful timeout error")
+	ErrAppNotFountInContext = errors.New("app not found in context")
 )
 
 type singleError struct {
