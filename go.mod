@@ -8,6 +8,8 @@ require (
 )
 
 require (
+	github.com/OddEer0/eelog v1.0.5 // indirect
+	github.com/OddEer0/errx v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

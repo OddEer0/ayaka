@@ -4,19 +4,20 @@ import (
 	"context"
 )
 
-type appKey struct{}
+type appKey[T any] struct{}
 
 func AppWithContext[T any](ctx context.Context, app *App[T]) context.Context {
-	return context.WithValue(ctx, appKey{}, app)
+	return context.WithValue(ctx, appKey[T]{}, app)
 }
 
-func AppFromContext[T any](ctx context.Context) (*ReadonlyApp[T], error) {
-	val := ctx.Value(appKey{})
+func AppFromContext[T any](ctx context.Context) (*App[T], error) {
+	val := ctx.Value(appKey[T]{})
 	if val == nil {
 		return nil, ErrAppNotFountInContext
 	}
-	result := val.(*App[T])
-	return &ReadonlyApp[T]{
-		app: result,
-	}, nil
+	result, ok := val.(*App[T])
+	if !ok {
+		return nil, ErrAppNotFountInContext
+	}
+	return result, nil
 }

@@ -2,55 +2,141 @@ package ayaka
 
 import (
 	"context"
-	"errors"
-	"reflect"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/OddEer0/eelog"
+	"github.com/OddEer0/errx"
 )
 
 type (
 	Job[T any] interface {
+		Name() string
 		Init(ctx context.Context, container T) error
 		Run(ctx context.Context, container T) error
-	}
-
-	JobEntry[T any] struct {
-		Key string
-		Job Job[T]
 	}
 
 	Info struct {
 		Name, Version, Description string
 	}
 
-	ConfigInterceptor func(ctx context.Context, conf *Config) (*Config, error)
+	Hooks[T any] struct {
+		BeforeInit func(ctx context.Context, job Job[T])
+		AfterInit  func(ctx context.Context, job Job[T], err error)
+
+		BeforeRun func(ctx context.Context, job Job[T])
+		AfterRun  func(ctx context.Context, job Job[T], err error)
+	}
+
+	Options[T any] struct {
+		Name, Description, Version    string
+		StartTimeout, GracefulTimeout time.Duration
+		Container                     T
+		Logger                        eelog.Logger
+		Hooks                         Hooks[T]
+	}
 
 	App[T any] struct {
-		info   Info
-		config *Config
-		jobs   map[string]Job[T]
-		err    error
-		ctx    context.Context
+		info Info
+
+		jobs  map[string]Job[T]
+		order []string
 
 		container T
+		logger    eelog.Logger
 
-		configInterceptor ConfigInterceptor
-		logger            Logger
-	}
+		startTimeout    time.Duration
+		gracefulTimeout time.Duration
 
-	ReadonlyApp[T any] struct {
-		app *App[T]
+		ctx    context.Context
+		cancel context.CancelFunc
+
+		hooks Hooks[T]
+
+		err error
 	}
 )
 
-var (
-	ErrIsInvalidArgument = errors.New("invallid argument")
+const (
+	DefaultStartTimeout        = time.Second * 3
+	DefaultGracefulTimeout     = time.Second * 10
+	LogInfoInitAllJobsStarted  = "init all jobs started"
+	LogInfoInitAllJobsFinished = "init all jobs finished"
+	LogInfoRunAllJobsStarted   = "run all jobs started"
+	LogInfoRunAllJobsFinished  = "run all jobs finished"
+	LogWarnJobAlreadyExists    = "job already exists"
+
+	defaultCapacity = 16
 )
+
+func NewApp[T any](opt Options[T]) *App[T] {
+	var errRes error
+	opt = opt.DefaultValue()
+	err := opt.Validate()
+	if err != nil {
+		errRes = err
+	}
+
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+
+	result := &App[T]{
+		info: Info{
+			Name:        opt.Name,
+			Description: opt.Description,
+			Version:     opt.Version,
+		},
+		jobs:  make(map[string]Job[T], defaultCapacity),
+		order: make([]string, 0, defaultCapacity),
+		err:   errRes,
+
+		startTimeout:    opt.StartTimeout,
+		gracefulTimeout: opt.GracefulTimeout,
+
+		container: opt.Container,
+		logger:    opt.Logger,
+
+		ctx:    ctx,
+		cancel: cancel,
+
+		hooks: opt.Hooks,
+	}
+
+	result.ctx = AppWithContext(ctx, result)
+
+	return result
+}
+
+func (o Options[T]) DefaultValue() Options[T] {
+	if o.Logger == nil {
+		o.Logger = eelog.NoopLogger{}
+	}
+	if o.StartTimeout == 0 {
+		o.StartTimeout = DefaultStartTimeout
+	}
+	if o.GracefulTimeout == 0 {
+		o.GracefulTimeout = DefaultGracefulTimeout
+	}
+
+	return o
+}
+
+func (o Options[T]) Validate() error {
+	if o.Name == "" ||
+		o.Version == "" ||
+		o.Description == "" {
+		return ErrInvalidArgument
+	}
+	return nil
+}
 
 func (a *App[T]) Info() Info {
 	return a.info
-}
-
-func (a *App[T]) Config() *Config {
-	return a.config
 }
 
 func (a *App[T]) Err() error {
@@ -65,98 +151,57 @@ func (a *App[T]) Context() context.Context {
 	return a.ctx
 }
 
-func (a *App[T]) Logger() Logger {
+func (a *App[T]) Logger() eelog.Logger {
 	return a.logger
 }
 
-func (r *ReadonlyApp[T]) Info() Info {
-	return r.app.Info()
+func (a *App[T]) StartTimeout() time.Duration {
+	return a.startTimeout
 }
 
-func (r *ReadonlyApp[T]) Context() context.Context {
-	return r.app.Context()
+func (a *App[T]) GracefulTimeout() time.Duration {
+	return a.gracefulTimeout
 }
 
-func (r *ReadonlyApp[T]) Config() any {
-	return r.app.Config()
-}
-
-func (r *ReadonlyApp[T]) Err() error {
-	return r.app.Err()
-}
-
-func (r *ReadonlyApp[T]) Container() T {
-	return r.app.Container()
-}
-
-func (r *ReadonlyApp[T]) Logger() Logger {
-	return r.app.Logger()
-}
-
-type Options[T any] struct {
-	Name, Description, Version string
-	ConfigInterceptor          ConfigInterceptor
-	Logger                     Logger
-	Container                  T
-}
-
-func IsNil(val any) bool {
-	if val == nil {
-		return true
+func (a *App[T]) Start() error {
+	if a.err != nil {
+		return a.err
+	}
+	if len(a.jobs) == 0 {
+		a.err = ErrNoJobs
+		return a.err
 	}
 
-	v := reflect.ValueOf(val)
-	switch v.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
-		return v.IsNil()
-	case reflect.Invalid, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
-		reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Uintptr, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128,
-		reflect.Array, reflect.String, reflect.Struct, reflect.UnsafePointer:
-		return false
-	default:
-		return false
+	a.logger.Info(a.ctx, LogInfoInitAllJobsStarted)
+	err := a.initJobs(a.ctx, a.order)
+	if err != nil {
+		return errx.Wrap(err, "[App] initJob")
 	}
-}
+	a.logger.Info(a.ctx, LogInfoInitAllJobsFinished)
 
-func (o Options[T]) Validate() error {
-	if o.Name == "" ||
-		o.Version == "" ||
-		o.Description == "" ||
-		IsNil(o.Container) {
-		return ErrIsInvalidArgument
+	a.logger.Info(a.ctx, LogInfoRunAllJobsStarted)
+	err = a.runJobs(a.ctx, a.order)
+	if err != nil {
+		return errx.Wrap(err, "[App] runJob")
 	}
+	a.logger.Info(a.ctx, LogInfoRunAllJobsFinished)
 	return nil
 }
 
-func NewApp[T any](opt *Options[T]) *App[T] {
-	var errRes error
-	err := opt.Validate()
-	if err != nil {
-		errRes = err
-	}
-	var log Logger = NoopLogger{}
-	if opt.Logger != nil {
-		log = opt.Logger
+func (a *App[T]) WithJob(jobs ...Job[T]) *App[T] {
+	if a.err != nil {
+		return a
 	}
 
-	result := &App[T]{
-		info: Info{
-			Name:        opt.Name,
-			Description: opt.Description,
-			Version:     opt.Version,
-		},
-		config: &Config{},
-		jobs:   make(map[string]Job[T]),
-		err:    errRes,
-
-		container: opt.Container,
-
-		configInterceptor: opt.ConfigInterceptor,
-		logger:            log,
+	for _, job := range jobs {
+		if _, ok := a.jobs[job.Name()]; ok {
+			a.logger.Warn(a.ctx, LogWarnJobAlreadyExists,
+				eelog.String(LogKeyJobName, job.Name()))
+			continue
+		}
+		a.jobs[job.Name()] = job
+		a.order = append(a.order, job.Name())
 	}
 
-	result.ctx = AppWithContext(context.Background(), result)
-
-	return result
+	return a
 }

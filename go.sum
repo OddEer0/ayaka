@@ -1,3 +1,9 @@
+github.com/OddEer0/eelog v1.0.4 h1:scZQ+C5S0OgMt1ANJtE8Ec7BqMJeqRfz8CN4Z6E2Iyo=
+github.com/OddEer0/eelog v1.0.4/go.mod h1:njGptE6IxDsKUmzrpN9y9q9+to/jjuWxnI3MZEN/VYw=
+github.com/OddEer0/eelog v1.0.5 h1:uHgMxg0Mw9VtUUZ7KzNf5GceRiAgYviD2VBn0vmPKk0=
+github.com/OddEer0/eelog v1.0.5/go.mod h1:njGptE6IxDsKUmzrpN9y9q9+to/jjuWxnI3MZEN/VYw=
+github.com/OddEer0/errx v1.0.0 h1:Do6hQxbyOrc1xx7GlgPRQ8c9wFvPaa8uoe8vxzZro4o=
+github.com/OddEer0/errx v1.0.0/go.mod h1:swwxu/dSH7R4J5lCKjZZ/M2NnXjEg5Un1ZqIG6zDHhw=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

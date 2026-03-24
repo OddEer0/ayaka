@@ -9,35 +9,30 @@ import (
 var (
 	ErrGracefulTimeout      = errors.New("graceful timeout error")
 	ErrAppNotFountInContext = errors.New("app not found in context")
+	ErrInvalidArgument      = errors.New("invalid argument")
+	ErrNoJobs               = errors.New("no jobs registered")
+	ErrJobInitFailed        = errors.New("job init failed")
+	ErrJobRunFailed         = errors.New("job run failed")
+	ErrJobInitPanic         = errors.New("job init panic")
+	ErrJobRunPanic          = errors.New("job run panic")
 )
 
 type singleError struct {
-	mu       sync.Mutex
-	err      error
-	callback func()
+	once sync.Once
+	err  error
 }
 
-func (s *singleError) add(err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.err == nil {
-		if s.callback != nil {
-			s.callback()
-		}
+func (s *singleError) add(err error, cancel func()) {
+	s.once.Do(func() {
+		cancel()
 		s.err = err
-	}
+	})
 }
 
 func (s *singleError) get() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	return s.err
 }
 
-func newSingleError(callback func()) *singleError {
-	return &singleError{
-		err:      nil,
-		mu:       sync.Mutex{},
-		callback: callback,
-	}
+func newSingleError() *singleError {
+	return &singleError{}
 }
